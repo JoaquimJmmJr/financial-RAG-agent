@@ -1,0 +1,24 @@
+# Ambiente
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Variáveis de ambiente
+.env
+
+# Índice FAISS gerado
+data/faiss_index/
+
+# Base de conhecimento (dados sensíveis)
+data/*.md
+data/*.pdf
+data/*.txt
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
