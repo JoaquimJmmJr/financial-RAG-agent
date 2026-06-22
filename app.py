@@ -1,9 +1,7 @@
-import os
 import logging
 import streamlit as st
 from financial_agent.embeddings import load_index
 from financial_agent.rag import build_retriever, ask
-from financial_agent.config import FAISS_INDEX_PATH
 
 logging.basicConfig(level=logging.INFO)
 
@@ -11,13 +9,16 @@ st.set_page_config(page_title="Financial RAG Agent", layout="centered")
 st.title("Financial RAG Agent")
 st.caption("Assessor financeiro com IA — respostas fundamentadas na base de conhecimento")
 
-st.cache_resource(show_spinner="Carregando base de conhecimento...")
+
+st.cache_resource(show_spinner="Conectando à base de conhecimento...")
 def init_retriever():
-    if not os.path.exists(FAISS_INDEX_PATH):
-        st.error("Índice FAISS não encontrado. Execute: python -m financial_agent.setup")
+    try:
+        index = load_index()
+        return build_retriever(index)
+    except Exception as e:
+        st.error(f"Erro ao conectar ao Pinecone: {e}\nVerifique PINECONE_API_KEY e PINECONE_INDEX_NAME no .env")
         st.stop()
-    index = load_index()
-    return build_retriever(index)
+
 
 retriever = init_retriever()
 

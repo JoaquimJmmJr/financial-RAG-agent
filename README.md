@@ -14,7 +14,7 @@ Assessor financeiro inteligente com Retrieval-Augmented Generation (RAG). Respon
 
 - Ingestão e chunking inteligente da base de conhecimento com `MarkdownTextSplitter`
 - Geração de embeddings via OpenAI (`text-embedding-3-small`)
-- Indexação vetorial local com FAISS
+- Indexação vetorial em cloud com Pinecone
 - Retrieval semântico dos trechos mais relevantes por pergunta
 - Montagem do prompt com contexto recuperado e envio ao LLM
 
@@ -29,7 +29,7 @@ Assessor financeiro inteligente com Retrieval-Augmented Generation (RAG). Respon
 
 - Base de conhecimento em formato Markdown (`.md`), legível e versionável no Git
 - Script de setup para ingestão e reindexação: `python -m financial_agent.setup`
-- Índice FAISS persistido em disco — não é necessário reingerir a cada execução
+- Índice persistido no Pinecone (cloud) — não é necessário reingerir a cada execução
 - Suporte a múltiplos documentos na pasta `data/`
 
 ### 4. Rastreabilidade e transparência
@@ -61,7 +61,7 @@ Pipeline:
     |
     ├── Embeddings (OpenAI text-embedding-3-small)
     |
-    ├── Retrieval (FAISS similarity search)
+    ├── Retrieval (Pinecone similarity search)
     |     └── Top-k chunks mais relevantes da base de conhecimento
     |
     ├── Prompt Composition (LangChain)
@@ -103,14 +103,13 @@ Pipeline:
 | Framework RAG | LangChain |
 | LLM | OpenAI GPT-4o-mini |
 | Embeddings | OpenAI text-embedding-3-small |
-| Vector DB | FAISS (local, MVP) |
+| Vector DB | Pinecone (cloud) |
 | Configuração | python-dotenv |
 
 ### Roadmap de tecnologias (v2.0)
 
 | Camada | Tecnologia |
 |---|---|
-| Vector DB | Pinecone (cloud, produção) |
 | Backend API | FastAPI |
 
 ---
@@ -151,8 +150,12 @@ pip install -r requirements.txt
 Crie um arquivo `.env` com base no exemplo:
 
 ```env
-OPENAI_API_KEY=your_key_here
+OPENAI_API_KEY=your_openai_key_here
+PINECONE_API_KEY=your_pinecone_key_here
+PINECONE_INDEX_NAME=financial-rag
 ```
+
+`PINECONE_INDEX_NAME` pode ser qualquer nome. O setup cria o índice automaticamente no Pinecone caso ele ainda não exista.
 
 ### 5. Adicione sua base de conhecimento
 
@@ -164,7 +167,7 @@ Coloque seu arquivo `.md` em `data/knowledge_base.md`. O documento deve estar em
 python -m financial_agent.setup
 ```
 
-Este comando lê os documentos em `data/`, gera os embeddings e salva o índice FAISS em `data/faiss_index/`.
+Este comando lê os documentos em `data/`, gera os embeddings e indexa os vetores no Pinecone. O índice é criado automaticamente se ainda não existir.
 
 ### 7. Execute a aplicação
 
@@ -181,14 +184,13 @@ financial-rag-agent/
 ├── financial_agent/
 │   ├── __init__.py
 │   ├── config.py           # Constantes e leitura do .env
-│   ├── embeddings.py       # Ingestão, indexação e retrieval (FAISS)
+│   ├── embeddings.py       # Ingestão, indexação e retrieval (Pinecone)
 │   ├── llm.py              # Cliente OpenAI
 │   ├── rag.py              # Pipeline RAG (orquestra embeddings + llm)
 │   ├── agent.py            # Lógica conversacional (histórico, chain)
 │   └── setup.py            # Script de ingestão da base de conhecimento
 ├── data/
-│   ├── knowledge_base.md   # Base de conhecimento financeira
-│   └── faiss_index/        # Índice vetorial gerado (ignorado pelo Git)
+│   └── knowledge_base.md   # Base de conhecimento financeira
 ├── tests/
 │   └── test_rag.py
 ├── app.py                  # Entry point Streamlit
@@ -204,23 +206,22 @@ financial-rag-agent/
 - [ ] Arquitetura e padrões de RAG
 - [ ] Text splitting e estratégias de chunking
 - [ ] Geração e persistência de embeddings
-- [ ] Integração com Vector DB (FAISS)
+- [x] Integração com Vector DB (FAISS)
+- [x] Migração de Vector DB local para cloud (Pinecone)
 - [ ] Prompt engineering com LangChain
 - [ ] Atribuição de fonte e grounding de respostas
 - [ ] Testes para pipelines de IA
-- [ ] Migração de Vector DB local para cloud (Pinecone)
 - [ ] Exposição do agente como API REST (FastAPI)
 
 ---
 
 ## Melhorias futuras
 
-- **Migrar para Pinecone**: substituir o índice FAISS local por Pinecone para persistência cloud, escalabilidade e atualizações incrementais da base sem reindexação completa
 - **API REST com FastAPI**: expor o agente como endpoint HTTP, desacoplando o backend do Streamlit e permitindo integração com outros clientes
 - **Scoring de confiança**: exibir um indicador de confiança baseado nos scores de similaridade dos chunks recuperados, alertando o usuário quando o contexto recuperado é fraco
 - **Ingestão de PDF**: permitir upload direto de documentos PDF além de Markdown, com extração de texto via PyMuPDF
 - **Memoria persistente**: salvar o histórico de conversas entre sessões para continuidade do contexto
-- **Atualização incremental da base**: adicionar documentos ao índice sem reindexar tudo, usando FAISS `add_with_ids`
+- **Atualização incremental da base**: adicionar documentos ao índice sem reindexar tudo, usando a API de upsert do Pinecone
 - **Avaliação automatizada do RAG**: implementar métricas de qualidade do retrieval (MRR, NDCG) e fidelidade das respostas (RAGAS)
 
 ---
