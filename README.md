@@ -32,7 +32,15 @@ Assessor financeiro inteligente com Retrieval-Augmented Generation (RAG). Respon
 - Índice persistido no Pinecone (cloud) — não é necessário reingerir a cada execução
 - Suporte a múltiplos documentos na pasta `data/`
 
-### 4. Rastreabilidade e transparência
+### 4. API REST com FastAPI
+
+- Endpoint `POST /chat` expõe o agente para qualquer cliente HTTP (mobile, outro backend, frontend externo)
+- Endpoint `GET /health` para monitoramento de disponibilidade
+- Documentação interativa gerada automaticamente via Swagger UI em `/docs`
+- Schemas tipados com Pydantic (`ChatRequest`, `ChatResponse`) para validação automática de entrada e saída
+- Retriever compartilhado entre API e Streamlit via singleton (`@lru_cache`) — sem duplicação de recursos
+
+### 5. Rastreabilidade e transparência
 
 - Cada resposta exibe os chunks da base utilizados como contexto
 - Score de similaridade exibido por chunk recuperado
@@ -77,20 +85,26 @@ Output:
   Resposta fundamentada + fontes citadas (Streamlit)
 ```
 
-**Roadmap de arquitetura (v2.0)**
+**API REST (paralela ao Streamlit)**
 
 ```
 Input:
-  Requisição HTTP (cliente web ou mobile)
+  POST /chat  { question, chat_history }
 
 Pipeline:
   FastAPI endpoint
     |
-    ├── LangChain RAG Agent
-    |     ├── Retrieval (Pinecone cloud)
-    |     └── LLM (OpenAI GPT-4o-mini)
+    ├── Retrieval (Pinecone similarity search)
+    |     └── Top-k chunks mais relevantes
     |
-    └── JSON Response com metadata (chunks, scores, tokens usados)
+    ├── Prompt Composition (LangChain)
+    |     ├── System prompt + contexto recuperado
+    |     └── Histórico da conversa
+    |
+    └── LLM (OpenAI GPT-4o-mini)
+
+Output:
+  { answer, sources: [{ content }] }
 ```
 
 ---
@@ -104,13 +118,8 @@ Pipeline:
 | LLM | OpenAI GPT-4o-mini |
 | Embeddings | OpenAI text-embedding-3-small |
 | Vector DB | Pinecone (cloud) |
+| Backend API | FastAPI + Uvicorn |
 | Configuração | python-dotenv |
-
-### Roadmap de tecnologias (v2.0)
-
-| Camada | Tecnologia |
-|---|---|
-| Backend API | FastAPI |
 
 ---
 
@@ -171,8 +180,52 @@ Este comando lê os documentos em `data/`, gera os embeddings e indexa os vetore
 
 ### 7. Execute a aplicação
 
+**Interface Streamlit:**
 ```bash
 streamlit run app.py
+```
+
+**API REST (opcional, porta 8000):**
+```bash
+uvicorn api.main:app --reload
+```
+
+A documentação interativa da API estará disponível em `http://localhost:8000/docs`.
+
+### 8. Testando a API
+
+**Via Swagger UI (sem código):**
+1. Acesse `http://localhost:8000/docs`
+2. Clique em `POST /chat` → "Try it out"
+3. Cole o payload e clique em "Execute":
+```json
+{
+  "question": "O que é um FII?",
+  "chat_history": []
+}
+```
+
+**Via terminal (curl):**
+
+Windows PowerShell:
+```powershell
+Invoke-RestMethod -Uri http://localhost:8000/chat `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"question": "O que é um FII?", "chat_history": []}'
+```
+
+Mac/Linux:
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "O que é um FII?", "chat_history": []}'
+```
+
+**Verificar se a API está no ar:**
+```bash
+curl http://localhost:8000/health
+# Resposta esperada: {"status":"ok"}
 ```
 
 ---
@@ -181,20 +234,25 @@ streamlit run app.py
 
 ```
 financial-rag-agent/
+├── api/
+│   ├── __init__.py
+│   ├── main.py             # FastAPI app + endpoints (/health, /chat)
+│   ├── schemas.py          # Modelos Pydantic (ChatRequest, ChatResponse)
+│   └── dependencies.py     # Retriever singleton compartilhado
 ├── financial_agent/
 │   ├── __init__.py
 │   ├── config.py           # Constantes e leitura do .env
 │   ├── embeddings.py       # Ingestão, indexação e retrieval (Pinecone)
 │   ├── llm.py              # Cliente OpenAI
 │   ├── rag.py              # Pipeline RAG (orquestra embeddings + llm)
-│   ├── agent.py            # Lógica conversacional (histórico, chain)
 │   └── setup.py            # Script de ingestão da base de conhecimento
 ├── data/
 │   └── knowledge_base.md   # Base de conhecimento financeira
 ├── tests/
 │   └── test_rag.py
-├── app.py                  # Entry point Streamlit
+├── app.py                  # Interface Streamlit
 ├── requirements.txt
+├── .env.example
 ├── .gitignore
 └── README.md
 ```
@@ -211,13 +269,12 @@ financial-rag-agent/
 - [ ] Prompt engineering com LangChain
 - [ ] Atribuição de fonte e grounding de respostas
 - [ ] Testes para pipelines de IA
-- [ ] Exposição do agente como API REST (FastAPI)
+- [x] Exposição do agente como API REST (FastAPI)
 
 ---
 
 ## Melhorias futuras
 
-- **API REST com FastAPI**: expor o agente como endpoint HTTP, desacoplando o backend do Streamlit e permitindo integração com outros clientes
 - **Scoring de confiança**: exibir um indicador de confiança baseado nos scores de similaridade dos chunks recuperados, alertando o usuário quando o contexto recuperado é fraco
 - **Ingestão de PDF**: permitir upload direto de documentos PDF além de Markdown, com extração de texto via PyMuPDF
 - **Memoria persistente**: salvar o histórico de conversas entre sessões para continuidade do contexto
