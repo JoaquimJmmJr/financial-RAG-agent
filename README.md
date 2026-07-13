@@ -261,15 +261,26 @@ financial-rag-agent/
 
 ## Objetivos de aprendizado
 
-- [ ] Arquitetura e padrões de RAG
-- [ ] Text splitting e estratégias de chunking
-- [ ] Geração e persistência de embeddings
+- [x] Arquitetura e padrões de RAG
+- [x] Text splitting e estratégias de chunking
+- [x] Geração e persistência de embeddings
 - [x] Integração com Vector DB (FAISS)
 - [x] Migração de Vector DB local para cloud (Pinecone)
-- [ ] Prompt engineering com LangChain
-- [ ] Atribuição de fonte e grounding de respostas
+- [x] Prompt engineering com LangChain
+- [x] Atribuição de fonte e grounding de respostas
 - [ ] Testes para pipelines de IA
 - [x] Exposição do agente como API REST (FastAPI)
+- [x] Deploy em produção (Render)
+
+---
+
+## Deploy
+
+API em produção no Render: `https://financial-rag-agent-gtes.onrender.com`
+
+Documentação interativa: `https://financial-rag-agent-gtes.onrender.com/docs`
+
+> Plano gratuito: o serviço hiberna após 15 minutos sem requisições. A primeira chamada após inatividade pode levar ~30-50s para responder.
 
 ---
 

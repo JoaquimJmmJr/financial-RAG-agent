@@ -22,3 +22,6 @@ data/*.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Notas pessoais de aprendizado (não destinadas ao repositório público)
+notes/
