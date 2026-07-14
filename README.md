@@ -1,91 +1,91 @@
 # Financial RAG Agent
 
-Assessor financeiro inteligente com Retrieval-Augmented Generation (RAG). Responde dúvidas de investimento com base em uma base de conhecimento personalizada, citando as fontes utilizadas em cada resposta.
+An intelligent financial advisor built with Retrieval-Augmented Generation (RAG). It answers investment questions based on a custom knowledge base, citing the sources used in each response.
 
-**Objetivo**: Explorar padrões de RAG aplicados ao domínio financeiro e construir um exemplo production-ready para portfólio.
+**Goal**: Explore RAG patterns applied to the financial domain and build a production-ready portfolio example.
 
-> Boas bases de conhecimento financeiro são extensas e difusas. Um sistema RAG permite consultar apenas os trechos relevantes ao contexto da pergunta, gerando respostas precisas e rastreáveis.
-
----
-
-## Principais funcionalidades
-
-### 1. Pipeline RAG completo
-
-- Ingestão e chunking inteligente da base de conhecimento com `MarkdownTextSplitter`
-- Geração de embeddings via OpenAI (`text-embedding-3-small`)
-- Indexação vetorial em cloud com Pinecone
-- Retrieval semântico dos trechos mais relevantes por pergunta
-- Montagem do prompt com contexto recuperado e envio ao LLM
-
-### 2. Assessor financeiro conversacional
-
-- Interface de chat com histórico de conversa via `st.session_state`
-- Respostas fundamentadas exclusivamente no conteúdo da base de conhecimento
-- Citação automática dos trechos da base utilizados em cada resposta
-- Indicação explícita quando a pergunta está fora do escopo da base
-
-### 3. Gerenciamento da base de conhecimento
-
-- Base de conhecimento em formato Markdown (`.md`), legível e versionável no Git
-- Script de setup para ingestão e reindexação: `python -m financial_agent.setup`
-- Índice persistido no Pinecone (cloud) — não é necessário reingerir a cada execução
-- Suporte a múltiplos documentos na pasta `data/`
-
-### 4. API REST com FastAPI
-
-- Endpoint `POST /chat` expõe o agente para qualquer cliente HTTP (mobile, outro backend, frontend externo)
-- Endpoint `GET /health` para monitoramento de disponibilidade
-- Documentação interativa gerada automaticamente via Swagger UI em `/docs`
-- Schemas tipados com Pydantic (`ChatRequest`, `ChatResponse`) para validação automática de entrada e saída
-- Retriever compartilhado entre API e Streamlit via singleton (`@lru_cache`) — sem duplicação de recursos
-
-### 5. Rastreabilidade e transparência
-
-- Cada resposta exibe os chunks da base utilizados como contexto
-- Score de similaridade exibido por chunk recuperado
-- Permite auditar por que o modelo respondeu o que respondeu
+> Good financial knowledge bases are extensive and diffuse. A RAG system allows queries to retrieve only the passages relevant to the question's context, generating precise and traceable answers.
 
 ---
 
-## Limitações conhecidas
+## Key Features
 
-- **Base estática**: o agente não acessa internet nem dados de mercado em tempo real. As respostas refletem apenas o conteúdo da base de conhecimento indexada.
-- **Cobertura da base**: perguntas fora do escopo do documento retornam indicação explícita de ausência de contexto, mas a qualidade da resposta depende diretamente da qualidade e abrangência do conteúdo indexado.
-- **Alucinação residual**: mesmo com RAG, o LLM pode interpolar informações não presentes nos chunks recuperados. A exibição dos chunks de contexto permite ao usuário verificar a fidelidade da resposta.
-- **Chunking fixo**: o tamanho e overlap dos chunks são configurados estaticamente. Documentos com estrutura muito variada podem requerer ajuste fino dos parâmetros de split.
-- **Custo de embeddings**: cada reindexação gera chamadas à API de embeddings da OpenAI. Para bases grandes, o custo deve ser considerado.
+### 1. Complete RAG Pipeline
+
+- Intelligent knowledge base ingestion and chunking with `MarkdownTextSplitter`
+- Embedding generation via OpenAI (`text-embedding-3-small`)
+- Cloud vector indexing with Pinecone
+- Semantic retrieval of the most relevant passages per question
+- Prompt assembly with retrieved context, sent to the LLM
+
+### 2. Conversational Financial Advisor
+
+- Chat interface with conversation history via `st.session_state`
+- Answers grounded exclusively in the knowledge base content
+- Automatic citation of the base passages used in each response
+- Explicit indication when a question falls outside the base's scope
+
+### 3. Knowledge Base Management
+
+- Knowledge base in Markdown (`.md`) format, readable and version-controllable in Git
+- Setup script for ingestion and reindexing: `python -m financial_agent.setup`
+- Index persisted in Pinecone (cloud) — no need to reingest on every run
+- Support for multiple documents in the `data/` folder
+
+### 4. REST API with FastAPI
+
+- `POST /chat` endpoint exposes the agent to any HTTP client (mobile, another backend, external frontend)
+- `GET /health` endpoint for availability monitoring
+- Interactive documentation auto-generated via Swagger UI at `/docs`
+- Typed schemas with Pydantic (`ChatRequest`, `ChatResponse`) for automatic input/output validation
+- Retriever shared between the API and Streamlit via singleton (`@lru_cache`) — no duplicated resources
+
+### 5. Traceability and Transparency
+
+- Each response displays the base chunks used as context
+- Similarity score shown per retrieved chunk
+- Enables auditing of why the model responded the way it did
 
 ---
 
-## Arquitetura do sistema
+## Known Limitations
+
+- **Static knowledge base**: the agent has no internet access or real-time market data. Responses reflect only the content of the indexed knowledge base.
+- **Base coverage**: questions outside the document's scope explicitly indicate a lack of context, but answer quality directly depends on the quality and breadth of the indexed content.
+- **Residual hallucination**: even with RAG, the LLM may interpolate information not present in the retrieved chunks. Displaying the context chunks allows users to verify response fidelity.
+- **Fixed chunking**: chunk size and overlap are statically configured. Documents with highly variable structure may require fine-tuning of the split parameters.
+- **Embedding cost**: each reindexing triggers calls to the OpenAI embeddings API. For large knowledge bases, cost should be taken into consideration.
+
+---
+
+## System Architecture
 
 ```
 Input:
-  Pergunta do usuário (Streamlit chat)
+  User question (Streamlit chat)
 
 Pipeline:
-  Pergunta
+  Question
     |
     ├── Embeddings (OpenAI text-embedding-3-small)
     |
     ├── Retrieval (Pinecone similarity search)
-    |     └── Top-k chunks mais relevantes da base de conhecimento
+    |     └── Top-k most relevant chunks from the knowledge base
     |
     ├── Prompt Composition (LangChain)
-    |     ├── System prompt com instruções do assessor
-    |     ├── Contexto: chunks recuperados
-    |     └── Histórico da conversa
+    |     ├── System prompt with advisor instructions
+    |     ├── Context: retrieved chunks
+    |     └── Conversation history
     |
     ├── LLM (OpenAI GPT-4o-mini)
     |
-    └── Resposta formatada + chunks de contexto exibidos
+    └── Formatted response + context chunks displayed
 
 Output:
-  Resposta fundamentada + fontes citadas (Streamlit)
+  Grounded response + cited sources (Streamlit)
 ```
 
-**API REST (paralela ao Streamlit)**
+**REST API (parallel to Streamlit)**
 
 ```
 Input:
@@ -95,11 +95,11 @@ Pipeline:
   FastAPI endpoint
     |
     ├── Retrieval (Pinecone similarity search)
-    |     └── Top-k chunks mais relevantes
+    |     └── Top-k most relevant chunks
     |
     ├── Prompt Composition (LangChain)
-    |     ├── System prompt + contexto recuperado
-    |     └── Histórico da conversa
+    |     ├── System prompt + retrieved context
+    |     └── Conversation history
     |
     └── LLM (OpenAI GPT-4o-mini)
 
@@ -109,30 +109,30 @@ Output:
 
 ---
 
-## Tecnologias utilizadas
+## Technologies Used
 
-| Camada | Tecnologia |
+| Layer | Technology |
 |---|---|
 | Interface | Streamlit |
-| Framework RAG | LangChain |
+| RAG Framework | LangChain |
 | LLM | OpenAI GPT-4o-mini |
 | Embeddings | OpenAI text-embedding-3-small |
 | Vector DB | Pinecone (cloud) |
 | Backend API | FastAPI + Uvicorn |
-| Configuração | python-dotenv |
+| Configuration | python-dotenv |
 
 ---
 
-## Como executar o projeto
+## How to Run the Project
 
-### 1. Clone o repositório
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/joaquimjonkel/financial-rag-agent.git
 cd financial-rag-agent
 ```
 
-### 2. Crie e ative o ambiente virtual
+### 2. Create and activate a virtual environment
 
 ```bash
 python -m venv .venv
@@ -148,15 +148,15 @@ Mac/Linux:
 source .venv/bin/activate
 ```
 
-### 3. Instale as dependências
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure as variáveis de ambiente
+### 4. Configure environment variables
 
-Crie um arquivo `.env` com base no exemplo:
+Create a `.env` file based on the example:
 
 ```env
 OPENAI_API_KEY=your_openai_key_here
@@ -164,43 +164,43 @@ PINECONE_API_KEY=your_pinecone_key_here
 PINECONE_INDEX_NAME=financial-rag
 ```
 
-`PINECONE_INDEX_NAME` pode ser qualquer nome. O setup cria o índice automaticamente no Pinecone caso ele ainda não exista.
+`PINECONE_INDEX_NAME` can be any name. Setup automatically creates the index in Pinecone if it doesn't already exist.
 
-### 5. Adicione sua base de conhecimento
+### 5. Add your knowledge base
 
-Coloque seu arquivo `.md` em `data/knowledge_base.md`. O documento deve estar em Markdown — use headings (`#`, `##`) para estruturar seções, pois o splitter usa esses marcadores para dividir chunks semanticamente.
+Place your `.md` file at `data/knowledge_base.md`. The document must be in Markdown — use headings (`#`, `##`) to structure sections, since the splitter uses these markers to divide chunks semantically.
 
-### 6. Indexe a base de conhecimento
+### 6. Index the knowledge base
 
 ```bash
 python -m financial_agent.setup
 ```
 
-Este comando lê os documentos em `data/`, gera os embeddings e indexa os vetores no Pinecone. O índice é criado automaticamente se ainda não existir.
+This command reads the documents in `data/`, generates embeddings, and indexes the vectors in Pinecone. The index is created automatically if it doesn't already exist.
 
-### 7. Execute a aplicação
+### 7. Run the application
 
-**Interface Streamlit:**
+**Streamlit interface:**
 ```bash
 streamlit run app.py
 ```
 
-**API REST (opcional, porta 8000):**
+**REST API (optional, port 8000):**
 ```bash
 uvicorn api.main:app --reload
 ```
 
-A documentação interativa da API estará disponível em `http://localhost:8000/docs`.
+Interactive API documentation is available at `http://localhost:8000/docs`.
 
-### 8. Testando a API
+### 8. Testing the API
 
-**Via Swagger UI (sem código):**
-1. Acesse `http://localhost:8000/docs`
-2. Clique em `POST /chat` → "Try it out"
-3. Cole o payload e clique em "Execute":
+**Via Swagger UI (no code):**
+1. Go to `http://localhost:8000/docs`
+2. Click `POST /chat` → "Try it out"
+3. Paste the payload and click "Execute":
 ```json
 {
-  "question": "O que é um FII?",
+  "question": "What is a REIT?",
   "chat_history": []
 }
 ```
@@ -212,45 +212,45 @@ Windows PowerShell:
 Invoke-RestMethod -Uri http://localhost:8000/chat `
   -Method POST `
   -ContentType "application/json" `
-  -Body '{"question": "O que é um FII?", "chat_history": []}'
+  -Body '{"question": "What is a REIT?", "chat_history": []}'
 ```
 
 Mac/Linux:
 ```bash
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"question": "O que é um FII?", "chat_history": []}'
+  -d '{"question": "What is a REIT?", "chat_history": []}'
 ```
 
-**Verificar se a API está no ar:**
+**Check if the API is running:**
 ```bash
 curl http://localhost:8000/health
-# Resposta esperada: {"status":"ok"}
+# Expected response: {"status":"ok"}
 ```
 
 ---
 
-## Estrutura do projeto
+## Project Structure
 
 ```
 financial-rag-agent/
 ├── api/
 │   ├── __init__.py
 │   ├── main.py             # FastAPI app + endpoints (/health, /chat)
-│   ├── schemas.py          # Modelos Pydantic (ChatRequest, ChatResponse)
-│   └── dependencies.py     # Retriever singleton compartilhado
+│   ├── schemas.py          # Pydantic models (ChatRequest, ChatResponse)
+│   └── dependencies.py     # Shared retriever singleton
 ├── financial_agent/
 │   ├── __init__.py
-│   ├── config.py           # Constantes e leitura do .env
-│   ├── embeddings.py       # Ingestão, indexação e retrieval (Pinecone)
-│   ├── llm.py              # Cliente OpenAI
-│   ├── rag.py              # Pipeline RAG (orquestra embeddings + llm)
-│   └── setup.py            # Script de ingestão da base de conhecimento
+│   ├── config.py           # Constants and .env parsing
+│   ├── embeddings.py       # Ingestion, indexing, and retrieval (Pinecone)
+│   ├── llm.py              # OpenAI client
+│   ├── rag.py              # RAG pipeline (orchestrates embeddings + llm)
+│   └── setup.py            # Knowledge base ingestion script
 ├── data/
-│   └── knowledge_base.md   # Base de conhecimento financeira
+│   └── knowledge_base.md   # Financial knowledge base
 ├── tests/
 │   └── test_rag.py
-├── app.py                  # Interface Streamlit
+├── app.py                  # Streamlit interface
 ├── requirements.txt
 ├── .env.example
 ├── .gitignore
@@ -259,41 +259,41 @@ financial-rag-agent/
 
 ---
 
-## Objetivos de aprendizado
+## Learning Objectives
 
-- [x] Arquitetura e padrões de RAG
-- [x] Text splitting e estratégias de chunking
-- [x] Geração e persistência de embeddings
-- [x] Integração com Vector DB (FAISS)
-- [x] Migração de Vector DB local para cloud (Pinecone)
-- [x] Prompt engineering com LangChain
-- [x] Atribuição de fonte e grounding de respostas
-- [ ] Testes para pipelines de IA
-- [x] Exposição do agente como API REST (FastAPI)
-- [x] Deploy em produção (Render)
-
----
-
-## Deploy
-
-API em produção no Render: `https://financial-rag-agent-gtes.onrender.com`
-
-Documentação interativa: `https://financial-rag-agent-gtes.onrender.com/docs`
-
-> Plano gratuito: o serviço hiberna após 15 minutos sem requisições. A primeira chamada após inatividade pode levar ~30-50s para responder.
+- [x] RAG architecture and patterns
+- [x] Text splitting and chunking strategies
+- [x] Embedding generation and persistence
+- [x] Vector DB integration (FAISS)
+- [x] Migration from local to cloud Vector DB (Pinecone)
+- [x] Prompt engineering with LangChain
+- [x] Source attribution and response grounding
+- [ ] Testing for AI pipelines
+- [x] Exposing the agent as a REST API (FastAPI)
+- [x] Production deployment (Render)
 
 ---
 
-## Melhorias futuras
+## Deployment
 
-- **Scoring de confiança**: exibir um indicador de confiança baseado nos scores de similaridade dos chunks recuperados, alertando o usuário quando o contexto recuperado é fraco
-- **Ingestão de PDF**: permitir upload direto de documentos PDF além de Markdown, com extração de texto via PyMuPDF
-- **Memoria persistente**: salvar o histórico de conversas entre sessões para continuidade do contexto
-- **Atualização incremental da base**: adicionar documentos ao índice sem reindexar tudo, usando a API de upsert do Pinecone
-- **Avaliação automatizada do RAG**: implementar métricas de qualidade do retrieval (MRR, NDCG) e fidelidade das respostas (RAGAS)
+API in production on Render: `https://financial-rag-agent-gtes.onrender.com`
+
+Interactive documentation: `https://financial-rag-agent-gtes.onrender.com/docs`
+
+> Free tier: the service hibernates after 15 minutes without requests. The first call after inactivity may take ~30-50s to respond.
 
 ---
 
-## Aviso legal
+## Future Improvements
 
-Este projeto e seus outputs sao fornecidos exclusivamente para fins educacionais. Não constituem aconselhamento financeiro profissional. Consulte um assessor financeiro qualificado antes de tomar decisoes de investimento.
+- **Confidence scoring**: display a confidence indicator based on the similarity scores of retrieved chunks, alerting the user when the retrieved context is weak
+- **PDF ingestion**: allow direct upload of PDF documents in addition to Markdown, with text extraction via PyMuPDF
+- **Persistent memory**: save conversation history across sessions for context continuity
+- **Incremental base updates**: add documents to the index without reindexing everything, using Pinecone's upsert API
+- **Automated RAG evaluation**: implement retrieval quality metrics (MRR, NDCG) and response fidelity metrics (RAGAS)
+
+---
+
+## Disclaimer
+
+This project and its outputs are provided for educational purposes only. They do not constitute professional financial advice. Consult a qualified financial advisor before making investment decisions.
